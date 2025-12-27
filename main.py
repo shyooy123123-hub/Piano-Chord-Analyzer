@@ -1,3 +1,27 @@
+import subprocess
+import sys
+
+required_libraries = ['librosa', 'pyaudio', 'numpy', 'scipy']
+
+def install_missing_libraries():
+    for lib in required_libraries:
+        try:
+            if lib == 'pyaudio':
+                import pyaudio
+            elif lib == 'librosa':
+                import librosa
+            else:
+                __import__(lib)
+        except ImportError:
+            print(f"[시스템] {lib} 라이브러리가 없습니다. 자동 설치를 시작합니다...")
+            try:
+                subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
+                print(f"[시스템] {lib} 설치 완료!")
+            except Exception as e:
+                print(f"[오류] {lib} 설치 중 문제가 발생했습니다: {e}")
+
+install_missing_libraries()
+
 import tkinter as tk
 from tkinter import messagebox, ttk, filedialog
 import pyaudio
@@ -10,18 +34,16 @@ import logging
 import time
 from collections import Counter
 
-# --- 로그 설정 ---
 logging.basicConfig(filename='app.log', level=logging.ERROR, 
                     format='%(asctime)s:%(levelname)s:%(message)s')
 
 class PianoChordApp:
     def __init__(self, window):
         self.window = window
-        self.window.title("화음 탐색기") # 1. 창 이름 변경
+        self.window.title("화음 탐색기")
         self.window.geometry("520x800")
-        self.window.configure(bg="#F8F9FA") # 전체 배경색 설정
+        self.window.configure(bg="#F8F9FA")
         
-        # 시스템 설정
         self.RATE = 44100  
         self.CHUNK = 1024 * 16 
         self.is_running = False
@@ -37,24 +59,21 @@ class PianoChordApp:
         self.setup_ui(window)
 
     def setup_ui(self, window):
-        # 헤더 섹션
         header_frame = tk.Frame(window, bg="#343A40", height=80)
         header_frame.pack(fill="x")
         tk.Label(header_frame, text="화음 실시간 분석 시스템", font=("맑은 고딕", 18, "bold"), 
                  fg="white", bg="#343A40").pack(pady=20)
 
-        # 2. 파일 재생 진행 정보 섹션
+
         file_info_frame = tk.LabelFrame(window, text=" 파일 재생 정보 ", bg="#F8F9FA", font=("맑은 고딕", 9))
         file_info_frame.pack(fill="x", padx=20, pady=15)
 
         self.time_label = tk.Label(file_info_frame, text="00:00 / 00:00", font=("Consolas", 11), bg="#F8F9FA")
         self.time_label.pack(pady=(5, 0))
 
-        # 파일 재생 프로그레스 바 (요구사항 2)
         self.file_progress = ttk.Progressbar(file_info_frame, orient="horizontal", length=400, mode="determinate")
         self.file_progress.pack(pady=10, padx=20)
 
-        # 3. 입력 신호 섹션 (요구사항 3)
         vol_frame = tk.Frame(window, bg="#F8F9FA")
         vol_frame.pack(fill="x", padx=20)
         tk.Label(vol_frame, text="[ 입력 신호 강도 ]", font=("맑은 고딕", 9, "bold"), bg="#F8F9FA", fg="#495057").pack(anchor="w", padx=20)
@@ -64,7 +83,6 @@ class PianoChordApp:
         self.volume_bar = ttk.Progressbar(vol_frame, orient="horizontal", length=440, mode="determinate")
         self.volume_bar.pack(pady=5, padx=20)
 
-        # 4. 분석 결과 섹션 (가장 눈에 띄게)
         result_frame = tk.Frame(window, bg="white", highlightbackground="#DEE2E6", highlightthickness=1)
         result_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
@@ -79,7 +97,6 @@ class PianoChordApp:
         self.info_display = tk.Label(result_frame, text="분석 대기 중...", font=("맑은 고딕", 9), bg="white", fg="#ADB5BD")
         self.info_display.pack(pady=15)
 
-        # 5. 제어 버튼 섹션
         btn_frame = tk.Frame(window, bg="#F8F9FA")
         btn_frame.pack(fill="x", pady=20)
 
@@ -97,7 +114,6 @@ class PianoChordApp:
                                   bg="#DC3545", fg="white", font=("맑은 고딕", 11, "bold"), width=40, height=2, relief="flat")
         self.btn_stop.pack(pady=(0, 30))
 
-    # --- 기존 기능 로직 (동일하게 유지) ---
     def load_code_list(self):
         try:
             with open('codes.json', 'r', encoding='utf-8') as f:
@@ -177,10 +193,8 @@ class PianoChordApp:
                 stream.write(chunk.astype(np.float32).tobytes())
                 notes, chord, score = self.process_core(chunk)
                 current_t = i / self.RATE
-                # 부드러운 볼륨 바 움직임을 위해 스케일링 조정
                 vol = min(100, np.sqrt(np.mean(chunk**2)) * 800) 
                 time_str = f"{int(current_t//60):02}:{int(current_t%60):02} / {int(duration//60):02}:{int(duration%60):02}"
-                # 파일 재생 진행률 계산
                 progress = (current_t / duration) * 100
                 self.window.after(0, self.update_ui, notes, chord, score, time.time()-start_t, vol, time_str, progress)
             stream.stop_stream()
@@ -217,9 +231,7 @@ class PianoChordApp:
         finally: p.terminate()
 
     def update_ui(self, notes, chord, score, p_time, vol, time_info, progress):
-        # 볼륨 바 업데이트
         self.volume_bar['value'] = vol
-        # 파일 진행 바 업데이트
         self.file_progress['value'] = progress
         self.time_label.config(text=time_info)
         
